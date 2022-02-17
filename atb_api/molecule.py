@@ -126,3 +126,65 @@ class Molecule(Model):
 
         Chem.SanitizeMol(rdmol)
         return Chem.Mol(rdmol)
+
+    def to_mdanalysis(self):
+        require_package("MDAnalysis")
+        import MDAnalysis as mda
+        from .mdanalysis import (
+            PartialCharge,
+            United,
+            OutputAtomisticID,
+            OutputUnitedID,
+        )
+
+        u = mda.Universe.empty(len(self.atoms), trajectory=True)
+        for attr in ("names", "resnames", "elements", "types",
+                     "charges", "partial_charges", "united",
+                     "aromaticities", "ids", "output_atomistic_ids",
+                     "output_united_ids", "masses"
+                     ):
+            u.add_TopologyAttr(attr)
+
+        id_to_index = {}
+        for i, (atbatom, mdaatom) in enumerate(zip(self.atoms, u.atoms)):
+            mdaatom.name = atbatom.name
+            mdaatom.element = atbatom.element.symbol
+            mdaatom.type = atbatom.atomistic_lj_atom_type
+            mdaatom.charge = atbatom.formal_charge
+            mdaatom.partial_charge = atbatom.atomistic_partial_charge
+            mdaatom.united = atbatom.is_united
+            mdaatom.aromaticity = atbatom.is_aromatic
+            mdaatom.id = atbatom.input_id
+            mdaatom.output_atomistic_id = atbatom.atomistic_output_id
+            mdaatom.output_united_id = atbatom.united_output_id
+            mdaatom.mass = atbatom.atomistic_mass
+            mdaatom.position = atbatom.optimized_coordinate * 10
+            mdaatom.residue.resname = atbatom.residue_name
+            id_to_index[atbatom.input_id] = i
+
+        bond_values = []
+        bond_types = []
+        bond_orders = []
+
+        for bond in self.bonds:
+            i_, j_ = bond.atomistic_atom_ids
+            i = id_to_index[i_]
+            j = id_to_index[j_]
+            bond_values.append((i, j))
+            bond_types.append((u.atoms[i].type, u.atoms[j].type))
+            bond_orders.append(bond.order)
+
+        u.add_bonds(bond_values, types=bond_types, order=bond_orders)
+
+        for parameter_name in ("angles", "dihedrals", "impropers"):
+            atb_parameters = getattr(self, parameter_name)
+            values = []
+            types = []
+            for parameter in atb_parameters:
+                value_ = tuple(id_to_index[x] for x in parameter.atomistic_atom_ids)
+                type_ = tuple(u.atoms[x].type for x in value_)
+                values.append(value_)
+                types.append(type_)
+            u._add_topology_objects(parameter_name, values, types=types)
+
+        return u

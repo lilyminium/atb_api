@@ -52,7 +52,7 @@ class Atom(Model):
     @validator("element", pre=True)
     def _validate_element_from_symbol(cls, v):
         if isinstance(v, str):
-            v = Element(symbol=v.capitalize())
+            v = Elements(symbol=v.capitalize())
         return v
 
     @validator("original_coordinate", "optimized_coordinate", pre=True)

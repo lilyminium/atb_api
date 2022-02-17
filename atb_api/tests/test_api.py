@@ -73,3 +73,12 @@ def test_to_rdkit(mol903922):
         "-[#8:12]-[#6:9](-[H:10])(-[H:11])-[#6:6](-[H:7])(-[H:8])"
         "-[#8:5]-[#6:2](-[H:3])(-[H:4])-[H:1]"
     )
+
+
+def test_to_mdanalysis(mol903922):
+    mda = pytest.importorskip("MDAnalysis")
+    u = mol903922.to_mdanalysis()
+    assert len(u.atoms) == 45
+    assert len(u.bonds) == 44
+    assert len(u.angles) == 80
+    assert len(u.dihedrals) == 89
