@@ -14,6 +14,11 @@ dependencies:
   - pytest-cov
   - codecov
 
+    # package
+  - pydantic  # possibly overkill
+  - pyyaml
+  - numpy
+
     # Pip-only installs
   #- pip:
   #  - codecov
