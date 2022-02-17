@@ -9,6 +9,7 @@ dependencies:
   - pydantic
   - numpy
   - pyyaml
+  - elementable
 
   - sphinx
 
