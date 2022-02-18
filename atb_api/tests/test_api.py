@@ -44,7 +44,10 @@ def test_download_molecule_file(api, format, resolution, optimized, reference):
 
 @pytest.fixture(scope="session")
 def mol903922(api):
-    return api.get_molecule(903922)
+    mol = api.get_molecule(903922)
+    with open("mol903922.json", "w") as f:
+        f.write(mol.json())
+    return mol
 
 
 def test_get_molecule(mol903922):

@@ -2,10 +2,19 @@ from typing import List, Dict, Any
 
 import numpy as np
 
-from elementable import Elements
+from elementable import Elementable
 from pydantic import Field, validator
 
 from .base import Model
+
+
+class ElementBase(Model):
+
+    pass
+
+
+elements = Elementable(element_cls=ElementBase)
+Element = elements.element_class
 
 
 class Atom(Model):
@@ -19,7 +28,7 @@ class Atom(Model):
     standard_atom_type_code: int = Field(default=0, alias="std_iacm")
     input_id: int = Field(default=1, alias="id", description="Index + 1 for ordered index of atoms in the input PDB")
     name: str = Field(default="", alias="symbol")
-    element: Elements.element_class = Field(default=Elements.X, alias="type")
+    element: Element = Field(default=elements.X, alias="type")
     type_energy: str = ""
 
     atomistic_partial_charge: float = Field(default=0, alias="charge")
@@ -52,7 +61,7 @@ class Atom(Model):
     @validator("element", pre=True)
     def _validate_element_from_symbol(cls, v):
         if isinstance(v, str):
-            v = Elements(symbol=v.capitalize())
+            v = elements(symbol=v.capitalize())
         return v
 
     @validator("original_coordinate", "optimized_coordinate", pre=True)

@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 import numpy as np
 
+from elementable import Elements
+
 
 class Model(BaseModel):
     class Config:

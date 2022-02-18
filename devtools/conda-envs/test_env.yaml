@@ -20,6 +20,9 @@ dependencies:
   - numpy
   - elementable
 
+  - rdkit
+  - mdanalysis
+
     # Pip-only installs
   #- pip:
   #  - codecov
