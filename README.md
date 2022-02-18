@@ -2,6 +2,8 @@ atb_api
 ==============================
 [//]: # (Badges)
 [![GitHub Actions Build Status](https://github.com/lilyminium/atb_api/workflows/CI/badge.svg)](https://github.com/lilyminium/atb_api/actions?query=workflow%3ACI)
+[![PyPI version](https://badge.fury.io/py/atb_api.svg)](https://pypi.org/project/atb-api/)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/atb_api)
 [![codecov](https://codecov.io/gh/lilyminium/atb_api/branch/master/graph/badge.svg)](https://codecov.io/gh/lilyminium/atb_api/branch/master)
 
 
