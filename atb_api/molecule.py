@@ -129,7 +129,7 @@ class Molecule(Model):
         Chem.SanitizeMol(rdmol)
         return Chem.Mol(rdmol)
 
-    def to_mdanalysis(self):
+    def to_mdanalysis(self, united: bool = False):
         require_package("MDAnalysis")
         import MDAnalysis as mda
         from .mdanalysis import (
@@ -139,7 +139,11 @@ class Molecule(Model):
             OutputUnitedID,
         )
 
-        u = mda.Universe.empty(len(self.atoms), trajectory=True)
+        atoms = self.atoms
+        if united:
+            atoms = [atom for atom in atoms if atom.get_united_ljsym()]
+
+        u = mda.Universe.empty(len(atoms), trajectory=True)
         for attr in (
             "names",
             "resnames",
@@ -157,7 +161,7 @@ class Molecule(Model):
             u.add_TopologyAttr(attr)
 
         id_to_index = {}
-        for i, (atbatom, mdaatom) in enumerate(zip(self.atoms, u.atoms)):
+        for i, (atbatom, mdaatom) in enumerate(zip(atoms, u.atoms)):
             mdaatom.name = atbatom.name
             mdaatom.element = atbatom.element.symbol
             mdaatom.type = atbatom.atomistic_lj_atom_type
@@ -165,7 +169,7 @@ class Molecule(Model):
             mdaatom.partial_charge = atbatom.atomistic_partial_charge
             mdaatom.united = atbatom.is_united
             mdaatom.aromaticity = atbatom.is_aromatic
-            mdaatom.id = atbatom.input_id
+            mdaatom.id = i + 1
             mdaatom.output_atomistic_id = atbatom.atomistic_output_id
             mdaatom.output_united_id = atbatom.united_output_id
             mdaatom.mass = atbatom.atomistic_mass
@@ -178,6 +182,8 @@ class Molecule(Model):
         bond_orders = []
 
         for bond in self.bonds:
+            if not all(x in id_to_index for x in bond.atomistic_atom_ids):
+                continue
             i_, j_ = bond.atomistic_atom_ids
             i = id_to_index[i_]
             j = id_to_index[j_]
@@ -187,11 +193,15 @@ class Molecule(Model):
 
         u.add_bonds(bond_values, types=bond_types, order=bond_orders)
 
-        for parameter_name in ("angles", "dihedrals", "impropers"):
+        for parameter_name in ("angles", "dihedrals"):  # , "impropers"):
             atb_parameters = getattr(self, parameter_name)
             values = []
             types = []
             for parameter in atb_parameters:
+                if parameter_name == "dihedrals" and not parameter.essential:
+                    continue
+                if not all(x in id_to_index for x in parameter.atomistic_atom_ids):
+                    continue
                 value_ = tuple(id_to_index[x] for x in parameter.atomistic_atom_ids)
                 type_ = tuple(u.atoms[x].type for x in value_)
                 values.append(value_)

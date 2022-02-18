@@ -78,11 +78,20 @@ def test_to_rdkit(mol903922):
 
 def test_to_mdanalysis(mol903922):
     mda = pytest.importorskip("MDAnalysis")
-    u = mol903922.to_mdanalysis()
+    u = mol903922.to_mdanalysis(united=False)
     assert len(u.atoms) == 45
     assert len(u.bonds) == 44
     assert len(u.angles) == 80
     assert len(u.dihedrals) == 89
+
+
+def test_to_mdanalysis_united_atom(mol903922):
+    mda = pytest.importorskip("MDAnalysis")
+    u = mol903922.to_mdanalysis(united=True)
+    assert len(u.atoms) == 19
+    assert len(u.bonds) == 18
+    assert len(u.angles) == 19
+    assert len(u.dihedrals) == 14
 
 
 @pytest.mark.parametrize("use_input_order, reference", [

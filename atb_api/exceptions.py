@@ -2,9 +2,13 @@ class ATBError(BaseException):
     pass
 
 
-class MissingTokenError(BaseException):
+class MissingTokenError(ATBError):
     pass
 
 
-class InvalidTokenError(BaseException):
+class InvalidTokenError(ATBError):
+    pass
+
+
+class ATBQuotaError(ATBError):
     pass

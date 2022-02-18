@@ -5,7 +5,7 @@ import os
 import requests
 import pathlib
 
-from .exceptions import InvalidTokenError
+from .exceptions import InvalidTokenError, ATBQuotaError
 from .molecule import Molecule
 
 MOLECULE_TYPES = [
@@ -73,6 +73,9 @@ class ATBApi:
             raise InvalidTokenError(
                 f"Invalid authentication credentials. Using api_token={self.api_token}"
             )
+        contents = self.decode_yaml(response.text)
+        if "daily quota" in contents.get("error", ""):
+            raise ATBQuotaError(contents["error"])
 
     def get_url(self, namespace: str, endpoint: str):
         if not endpoint.endswith(".py"):
