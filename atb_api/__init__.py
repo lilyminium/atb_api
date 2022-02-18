@@ -1,7 +1,7 @@
 """An API for ATB"""
 
 # Add imports here
-from .atb_api import *
+from .api import ATBApi
 
 # Handle versioneer
 from ._version import get_versions
