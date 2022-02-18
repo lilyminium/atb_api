@@ -9,6 +9,8 @@ from .datafiles import (
     MOL_903922_PDB_OPT_UA,
     MOL_903922_PDB_ORIGINAL_UA,
     MOL_903922_PDB_ORIGINAL_AA,
+    MOL_903922_ITP_AA_INPUT_ORDER,
+    MOL_903922_ITP_UA_INPUT_ORDER,
 )
 
 
@@ -22,35 +24,30 @@ def test_submit_existing_molecule(api):
     assert molid == 903922
 
 
-@pytest.mark.parametrize("format, resolution, optimized, reference", [
-    ("itp", "united_atom", None, MOL_903922_ITP_UA),
-    ("itp", "ua", None, MOL_903922_ITP_UA),
-    ("itp", "all_atom", None, MOL_903922_ITP_AA),
-    ("itp", "aa", None, MOL_903922_ITP_AA),
-    ("pdb", "united_atom", True, MOL_903922_PDB_OPT_UA),
-    ("pdb", "all_atom", True, MOL_903922_PDB_OPT_AA),
-    ("pdb", "united_atom", False, MOL_903922_PDB_ORIGINAL_UA),
-    ("pdb", "all_atom", False, MOL_903922_PDB_ORIGINAL_AA),
-])
+@pytest.mark.parametrize(
+    "format, resolution, optimized, reference",
+    [
+        ("itp", "united_atom", None, MOL_903922_ITP_UA),
+        ("itp", "ua", None, MOL_903922_ITP_UA),
+        ("itp", "all_atom", None, MOL_903922_ITP_AA),
+        ("itp", "aa", None, MOL_903922_ITP_AA),
+        ("pdb", "united_atom", True, MOL_903922_PDB_OPT_UA),
+        ("pdb", "all_atom", True, MOL_903922_PDB_OPT_AA),
+        ("pdb", "united_atom", False, MOL_903922_PDB_ORIGINAL_UA),
+        ("pdb", "all_atom", False, MOL_903922_PDB_ORIGINAL_AA),
+    ],
+)
 def test_download_molecule_file(api, format, resolution, optimized, reference):
-    output = api.download_molecule_file(molid=903922,
-                                        format=format,
-                                        resolution=resolution,
-                                        optimized=optimized)
+    output = api.download_molecule_file(
+        molid=903922, format=format, resolution=resolution, optimized=optimized
+    )
     with open(reference, "r") as f:
         expected = f.read()
     assert output == expected
 
 
-@pytest.fixture(scope="session")
-def mol903922(api):
-    mol = api.get_molecule(903922)
-    with open("mol903922.json", "w") as f:
-        f.write(mol.json())
-    return mol
-
-
-def test_get_molecule(mol903922):
+def test_get_molecule(api):
+    mol903922 = api.get_molecule(903922)
     assert mol903922.residue_name == "6Y3V"
 
     assert len(mol903922.atoms) == 45
@@ -64,6 +61,7 @@ def test_get_molecule(mol903922):
 def test_to_rdkit(mol903922):
     _ = pytest.importorskip("rdkit")
     from rdkit import Chem
+
     rdmol = mol903922.to_rdkit()
     assert rdmol.GetNumAtoms() == 45
     assert rdmol.GetNumBonds() == 44
@@ -85,3 +83,31 @@ def test_to_mdanalysis(mol903922):
     assert len(u.bonds) == 44
     assert len(u.angles) == 80
     assert len(u.dihedrals) == 89
+
+
+@pytest.mark.parametrize("use_input_order, reference", [
+    (False, MOL_903922_ITP_AA),
+    (True, MOL_903922_ITP_AA_INPUT_ORDER),
+])
+def test_to_itp(atbmol903922, use_input_order, reference):
+    itp_str = atbmol903922.to_itp_string(use_input_order=use_input_order, united=False)
+    with open(reference, "r") as f:
+        expected = f.read()
+    n_skip_lines = 6
+    expected = "\n".join(expected.split("\n")[n_skip_lines:])
+    itp_str = "\n".join(itp_str.split("\n")[n_skip_lines:])
+    assert itp_str == expected
+
+
+@pytest.mark.parametrize("use_input_order, reference", [
+    (False, MOL_903922_ITP_UA),
+    (True, MOL_903922_ITP_UA_INPUT_ORDER)
+])
+def test_to_itp_united(atbmol903922, use_input_order, reference):
+    itp_str = atbmol903922.to_itp_string(use_input_order=use_input_order, united=True)
+    with open(reference, "r") as f:
+        expected = f.read()
+    n_skip_lines = 6
+    expected = "\n".join(expected.split("\n")[n_skip_lines:])
+    itp_str = "\n".join(itp_str.split("\n")[n_skip_lines:])
+    assert itp_str == expected

@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+import datetime
 
 import numpy as np
 from pydantic import Field, validator
@@ -11,6 +12,7 @@ from .utils import require_package
 
 class Molecule(Model):
     """ATB Molecule"""
+
     molid: int
     name: Optional[str] = None
     iupac: Optional[str] = None
@@ -138,11 +140,20 @@ class Molecule(Model):
         )
 
         u = mda.Universe.empty(len(self.atoms), trajectory=True)
-        for attr in ("names", "resnames", "elements", "types",
-                     "charges", "partial_charges", "united",
-                     "aromaticities", "ids", "output_atomistic_ids",
-                     "output_united_ids", "masses"
-                     ):
+        for attr in (
+            "names",
+            "resnames",
+            "elements",
+            "types",
+            "charges",
+            "partial_charges",
+            "united",
+            "aromaticities",
+            "ids",
+            "output_atomistic_ids",
+            "output_united_ids",
+            "masses",
+        ):
             u.add_TopologyAttr(attr)
 
         id_to_index = {}
@@ -188,3 +199,151 @@ class Molecule(Model):
             u._add_topology_objects(parameter_name, values, types=types)
 
         return u
+
+    def to_itp(
+        self, filename: str,
+        use_input_order: bool = False,
+        united: bool = False,
+    ):
+        itp_string = self.to_itp_string(use_input_order=use_input_order, united=united)
+        with open(str(filename), "w") as f:
+            f.write(itp_string)
+
+    def to_itp_string(self, use_input_order: bool = False, united: bool = False) -> str:
+        from .templates.itp import ITP_TEMPLATE
+
+        atom_id_mapping = self.get_atom_id_mapping(
+            use_input_order=use_input_order, united=united
+        )
+        atoms = sorted(
+            [a for a in self.atoms if a.input_id in atom_id_mapping],
+            key=lambda a: atom_id_mapping[a.input_id],
+        )
+        atom_str = "\n".join(
+            [
+                atom.to_itp_string(
+                    output_id=atom_id_mapping[atom.input_id],
+                    united=united,
+                    residue_name=self.residue_name,
+                )
+                for atom in atoms
+            ]
+        )
+        if united:
+            charge = sum([atom.united_partial_charge for atom in atoms])
+        else:
+            charge = sum([atom.atomistic_partial_charge for atom in atoms])
+
+        bonds = self.get_sorted_parameters(self.bonds, atom_id_mapping, (0, 1))
+        bond_str = "\n".join([bond.to_itp_string(atom_id_mapping) for bond in bonds])
+        angles = self.get_sorted_parameters(self.angles, atom_id_mapping, (1, 0, 2))
+        angle_str = "\n".join(
+            [angle.to_itp_string(atom_id_mapping) for angle in angles]
+        )
+        dihedrals = self.get_sorted_parameters(
+            self.dihedrals, atom_id_mapping, (0, 1, 2, 3)
+        )
+        essential_dihedrals = [x for x in dihedrals if x.essential]
+        dih_str = "\n".join(
+            [dih.to_itp_string(atom_id_mapping) for dih in essential_dihedrals]
+        )
+        impropers = self.get_sorted_parameters(
+            self.impropers, atom_id_mapping, (0, 1, 2, 3)
+        )
+        if not united:
+            impropers = [
+                imp
+                for imp in impropers
+                if not self.atoms[imp.atomistic_atom_ids[0]].is_united
+            ]
+        imp_str = "\n".join([imp.to_itp_string(atom_id_mapping) for imp in impropers])
+
+        aa_output_id_to_atom = {atom.atomistic_output_id: atom for atom in atoms}
+        aa_output_id_to_new_id = {
+            k: v.input_id for k, v in aa_output_id_to_atom.items()
+        }
+        exclusions = []
+        exclusions_to_include = []
+        for atom1 in atoms:
+            id1 = atom_id_mapping[atom1.input_id]
+            excluded_atomistic_output_ids = atom1.get_exclusions(united=False)
+            for atom2id in excluded_atomistic_output_ids:
+                if atom2id in aa_output_id_to_new_id:
+                    excl = tuple(sorted([id1, aa_output_id_to_new_id[atom2id]]))
+                    exclusions.append(excl)
+                    atom2 = aa_output_id_to_atom[atom2id]
+                    if atom1.is_aromatic and atom2.is_aromatic:
+                        for ring in self.rings:
+                            if len(ring.atomistic_atom_ids) == 6:
+                                if (
+                                    atom1.input_id in ring.atomistic_atom_ids
+                                    and atom2.input_id in ring.atomistic_atom_ids
+                                ):
+                                    exclusions_to_include.append(excl)
+
+        exclusion_str = "\n".join(
+            [f"{x[0]:>6d} {x[1]:>6d}" for x in sorted(set(exclusions_to_include))]
+        )
+
+        pairs = []
+        for dih in dihedrals:
+            first, _, __, last = dih.atomistic_atom_ids
+            pair = sorted([atom_id_mapping[first], atom_id_mapping[last]])
+            if pair not in exclusions:
+                pairs.append(pair)
+        pair_str = "\n".join([f"{x[0]:>5d}{x[1]:>5d}    1" for x in sorted(pairs)])
+
+        now = datetime.datetime.now()
+        resolution = "all atom" if not united else "united atom"
+
+        return ITP_TEMPLATE.format(
+            time=now.strftime("%H:%M"),
+            date=now.strftime("%Y-%m-%d"),
+            revision=self.REV_DATE,
+            residue_name=self.residue_name,
+            resolution_upper=resolution.upper(),
+            resolution=resolution,
+            molecule_molid=self.molid,
+            molecule_hash=self.topology_hash,
+            atoms=atom_str,
+            total_charge=charge,
+            bonds=bond_str,
+            angles=angle_str,
+            dihedrals=dih_str,
+            impropers=imp_str,
+            exclusions=exclusion_str,
+            pairs=pair_str,
+        )
+
+    def get_sorted_parameters(self, initial_container, atom_id_mapping, sort_indices):
+        return sorted(
+            [
+                b
+                for b in initial_container
+                if all(a in atom_id_mapping for a in b.atomistic_atom_ids)
+            ],
+            key=lambda b: tuple(
+                atom_id_mapping[b.atomistic_atom_ids[i]] for i in sort_indices
+            ),
+        )
+
+    def get_atom_id_mapping(
+        self, use_input_order: bool = False, united: bool = False
+    ) -> Dict[int, int]:
+        id_to_atoms = {atom.input_id: atom for atom in self.atoms}
+
+        if use_input_order:
+            if united:
+                id_to_atoms = {k: v for k, v in id_to_atoms.items() if v.get_united_ljsym()}
+            id_to_output_id = {k: i for i, k in enumerate(sorted(id_to_atoms), 1)}
+        else:
+            if united:
+                id_to_output_id = {
+                    k: v.united_output_id for k, v in id_to_atoms.items()
+                    if v.get_united_ljsym()
+                }
+            else:
+                id_to_output_id = {
+                    k: v.atomistic_output_id for k, v in id_to_atoms.items()
+                }
+        return id_to_output_id

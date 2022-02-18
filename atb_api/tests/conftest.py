@@ -16,3 +16,8 @@ def api():
 @pytest.fixture(scope="session")
 def mol903922():
     return Molecule.parse_file(MOL_903922_JSON)
+
+
+@pytest.fixture(scope="session")
+def atbmol903922(api):
+    return api.get_molecule(903922)

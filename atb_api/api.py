@@ -14,7 +14,7 @@ MOLECULE_TYPES = [
     "nucleic acid",
     "sugar",
     "lipid",
-    "solvent"
+    "solvent",
 ]
 
 
@@ -27,24 +27,24 @@ class ATBApi:
     Create an instance by passing an API token, or the filename of one::
 
         api = ATBApi(api_token="MY_TOKEN")
-    
+
     Submit a molecule by passing in a PDB string or filename::
 
         molid = api.submit_molecule(my_pdb_file.pdb, net_charge=0, molecule_type="heteromolecule")
         assert isinstance(molid, int)
-    
+
     Get a molecule with a molecule ID::
 
         molecule = api.get_molecule(molid=molid)
         print(molecule.atoms)
         print(molecule.bonds[0].code)
-    
+
     Download a molecule file with a molecule ID::
 
         pdb_as_str = api.download_molecule(molid=903922, format="pdb",
                                            resolution="all_atom", optimized=True)
 
-    
+
     """
 
     host: str = "https://atb.uq.edu.au"
@@ -82,6 +82,7 @@ class ATBApi:
     @staticmethod
     def decode_yaml(text: str) -> Dict[Any, Any]:
         import yaml
+
         return yaml.load(text, yaml.Loader)
 
     def get(
@@ -89,7 +90,7 @@ class ATBApi:
         namespace: str,
         endpoint: str,
         data: Dict[str, Any] = {},
-        decode: bool = True
+        decode: bool = True,
     ) -> Union[str, Dict[Any, Any]]:
         url = self.get_url(namespace, endpoint)
         params = {
@@ -104,11 +105,12 @@ class ATBApi:
             text = self.decode_yaml(text)
         return text
 
-    def post(self,
-             namespace: str,
-             endpoint: str,
-             data: Dict[str, Any] = {},
-             ):
+    def post(
+        self,
+        namespace: str,
+        endpoint: str,
+        data: Dict[str, Any] = {},
+    ):
         url = self.get_url(namespace, endpoint)
         params = {"api_token": self.api_token}
         params.update(data)
@@ -133,7 +135,7 @@ class ATBApi:
             "united_atom": "uniatom",
             "ua": "uniatom",
             "all_atom": "allatom",
-            "aa": "allatom"
+            "aa": "allatom",
         }
         fmt = FORMAT.get(format.lower(), format)
         res = RESOLUTION.get(resolution.lower(), resolution)
@@ -168,9 +170,10 @@ class ATBApi:
         pdb: str,
         net_charge: int = 0,
         molecule_type: Literal[(*MOLECULE_TYPES,)] = "heteromolecule",  # type: ignore
-        public: bool = True
+        public: bool = True,
     ) -> int:
         from .utils import read_from_string_or_file
+
         pdb = read_from_string_or_file(pdb)
 
         data = dict(

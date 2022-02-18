@@ -1,4 +1,5 @@
 from .utils import require_package  # noqa
+
 require_package("MDAnalysis")  # noqa
 
 from MDAnalysis.core.topologyattrs import AtomAttr

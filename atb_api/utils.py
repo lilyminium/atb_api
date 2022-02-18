@@ -1,6 +1,7 @@
 import importlib
 from .exceptions import InvalidTokenError
 
+
 def require_package(package, installation=""):
     installation_messages = {
         "rdkit": "conda install -c conda-forge rdkit",
