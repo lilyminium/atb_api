@@ -129,7 +129,7 @@ class Molecule(Model):
         Chem.SanitizeMol(rdmol)
         return Chem.Mol(rdmol)
 
-    def to_mdanalysis(self, united: bool = False):
+    def to_mdanalysis(self, united: bool = False, optimized: bool = True):
         require_package("MDAnalysis")
         import MDAnalysis as mda
         from .mdanalysis import (
@@ -173,7 +173,10 @@ class Molecule(Model):
             mdaatom.output_atomistic_id = atbatom.atomistic_output_id
             mdaatom.output_united_id = atbatom.united_output_id
             mdaatom.mass = atbatom.atomistic_mass
-            mdaatom.position = atbatom.optimized_coordinate * 10
+            if optimized:
+                mdaatom.position = atbatom.optimized_coordinate * 10
+            else:
+                mdaatom.position = atbatom.original_coordinate * 10
             mdaatom.residue.resname = atbatom.residue_name
             id_to_index[atbatom.input_id] = i
 
