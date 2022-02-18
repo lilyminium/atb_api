@@ -82,7 +82,7 @@ def test_to_mdanalysis(mol903922):
     assert len(u.atoms) == 45
     assert len(u.bonds) == 44
     assert len(u.angles) == 80
-    assert len(u.dihedrals) == 89
+    assert len(u.dihedrals) == 17
 
 
 def test_to_mdanalysis_united_atom(mol903922):

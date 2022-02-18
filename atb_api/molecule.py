@@ -29,7 +29,7 @@ class Molecule(Model):
     scale_manual_charges: bool = True
     symmetrize_charges: bool = Field(default=True, alias="symmetrise_charges")
     sp_timeout: Optional[int] = None
-    select_output_atom_names: Dict[int, str] = {}
+    select_output_atom_names: Optional[Dict[int, str]] = None
     ff_version: str
     charge_assign_error: str
     atom_order_template: Optional[str] = None
